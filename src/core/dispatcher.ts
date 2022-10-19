@@ -39,14 +39,28 @@ export class Dispatcher implements BindingObserverDelegate {
     this.fetchEventListenerForBinding(binding).bindingConnected(binding)
   }
 
-  bindingDisconnected(binding: Binding) {
+  bindingDisconnected(binding: Binding, clearEventListeners: boolean = false) {
     this.fetchEventListenerForBinding(binding).bindingDisconnected(binding)
+    if (clearEventListeners) this.clearEventListenersForBinding(binding)
   }
 
   // Error handling
 
   handleError(error: Error, message: string, detail: object = {}) {
     this.application.handleError(error, `Error ${message}`, detail)
+  }
+
+  private clearEventListenersForBinding(binding: Binding) {
+    const eventListener = this.fetchEventListenerForBinding(binding)
+    if (eventListener.bindings.length == 0) {
+      const { eventTarget, eventName, eventOptions } = binding
+      const eventListenerMap = this.fetchEventListenerMapForEventTarget(eventTarget)
+      const cacheKey = this.cacheKey(eventName, eventOptions)
+      eventListener.disconnect()
+      eventListenerMap.delete(cacheKey)
+
+      if (eventListenerMap.size == 0) this.eventListenerMaps.delete(eventTarget)
+    }
   }
 
   private fetchEventListenerForBinding(binding: Binding): EventListener {
